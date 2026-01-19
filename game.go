@@ -7,6 +7,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
@@ -23,6 +24,7 @@ type Game struct {
 	activePiece *Piece
 	nextPiece   *Piece
 	timer       int
+	moveTimer   int
 	score       int
 	random      *rand.Rand
 }
@@ -32,21 +34,33 @@ func (g *Game) Update() error {
 		g.spawnPiece()
 	}
 
-	if ebiten.IsKeyPressed(ebiten.KeyUp) {
-		g.rotatePiece()
+	g.moveTimer++
+	if g.moveTimer >= 7 {
+		if ebiten.IsKeyPressed(ebiten.KeyLeft) {
+			newPos := Point{X: g.activePiece.Pos.X - 1, Y: g.activePiece.Pos.Y}
+			if g.isValidMove(newPos, g.activePiece.Shape) {
+				g.activePiece.Pos.X--
+				g.moveTimer = 0
+			}
+		}
+		if ebiten.IsKeyPressed(ebiten.KeyRight) {
+			newPos := Point{X: g.activePiece.Pos.X + 1, Y: g.activePiece.Pos.Y}
+			if g.isValidMove(newPos, g.activePiece.Shape) {
+				g.activePiece.Pos.X++
+				g.moveTimer = 0
+			}
+		}
+		if ebiten.IsKeyPressed(ebiten.KeyDown) {
+			newPos := Point{X: g.activePiece.Pos.X, Y: g.activePiece.Pos.Y + 1}
+			if g.isValidMove(newPos, g.activePiece.Shape) {
+				g.activePiece.Pos.Y++
+				g.moveTimer = 0
+			}
+		}
 	}
 
-	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
-		newPos := Point{X: g.activePiece.Pos.X - 1, Y: g.activePiece.Pos.Y}
-		if g.isValidMove(newPos, g.activePiece.Shape) {
-			g.activePiece.Pos.X--
-		}
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyRight) {
-		newPos := Point{X: g.activePiece.Pos.X + 1, Y: g.activePiece.Pos.Y}
-		if g.isValidMove(newPos, g.activePiece.Shape) {
-			g.activePiece.Pos.X++
-		}
+	if inpututil.IsKeyJustPressed(ebiten.KeyUp) {
+		g.rotatePiece()
 	}
 
 	g.timer++
