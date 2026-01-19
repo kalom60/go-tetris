@@ -27,6 +27,10 @@ func (g *Game) Update() error {
 		g.spawnPiece()
 	}
 
+	if ebiten.IsKeyPressed(ebiten.KeyUp) {
+		g.rotatePiece()
+	}
+
 	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
 		newPos := Point{X: g.activePiece.Pos.X - 1, Y: g.activePiece.Pos.Y}
 		if g.isValidMove(newPos, g.activePiece.Shape) {
@@ -99,11 +103,17 @@ func (g *Game) lockPiece() {
 		x := g.activePiece.Pos.X + p.X
 		y := g.activePiece.Pos.Y + p.Y
 
+		if y < 0 {
+			g.grid = [BoardHeight][BoardWidth]int{}
+			return
+		}
+
 		if y >= 0 {
 			g.grid[y][x] = g.activePiece.Type + 1
 		}
 	}
 
+	g.checkLines()
 	g.spawnPiece()
 }
 
@@ -126,4 +136,37 @@ func (g *Game) isValidMove(pos Point, shape []Point) bool {
 	}
 
 	return true
+}
+
+func (g *Game) rotatePiece() {
+	newShape := make([]Point, len(g.activePiece.Shape))
+
+	for i, p := range g.activePiece.Shape {
+		newShape[i] = Point{X: -p.Y, Y: p.X}
+	}
+
+	if g.isValidMove(g.activePiece.Pos, newShape) {
+		g.activePiece.Shape = newShape
+	}
+}
+
+func (g *Game) checkLines() {
+	for y := BoardHeight - 1; y >= 0; y-- {
+		full := true
+		for x := range BoardWidth {
+			if g.grid[y][x] == 0 {
+				full = false
+				break
+			}
+		}
+
+		if full {
+			for row := y; row > 0; row-- {
+				g.grid[row] = g.grid[row-1]
+			}
+			g.grid[0] = [BoardWidth]int{}
+
+			y++
+		}
+	}
 }
