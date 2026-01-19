@@ -1,5 +1,7 @@
 package main
 
+import "image/color"
+
 type Point struct {
 	X, Y int
 }
@@ -18,4 +20,17 @@ type Piece struct {
 	Type  int
 	Pos   Point
 	Shape []Point
+}
+
+func getShapeColor(t int) color.RGBA {
+	colors := []color.RGBA{
+		{0, 255, 255, 255}, // I - Cyan
+		{0, 0, 255, 255},   // J - Blue
+		{255, 165, 0, 255}, // L - Orange
+		{255, 255, 0, 255}, // O - Yellow
+		{0, 255, 0, 255},   // S - Green
+		{128, 0, 128, 255}, // T - Purple
+		{255, 0, 0, 255},   // Z - Red
+	}
+	return colors[t]
 }

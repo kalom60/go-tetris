@@ -2,6 +2,7 @@ package main
 
 import (
 	"image/color"
+	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
@@ -23,23 +24,30 @@ type Game struct {
 
 func (g *Game) Update() error {
 	if g.activePiece == nil {
-		g.activePiece = &Piece{
-			Type:  0,
-			Pos:   Point{X: BoardWidth / 2, Y: 0},
-			Shape: Tetrominoes[0],
-		}
+		g.spawnPiece()
 	}
 
 	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
-		g.activePiece.Pos.X--
+		newPos := Point{X: g.activePiece.Pos.X - 1, Y: g.activePiece.Pos.Y}
+		if g.isValidMove(newPos, g.activePiece.Shape) {
+			g.activePiece.Pos.X--
+		}
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyRight) {
-		g.activePiece.Pos.X++
+		newPos := Point{X: g.activePiece.Pos.X + 1, Y: g.activePiece.Pos.Y}
+		if g.isValidMove(newPos, g.activePiece.Shape) {
+			g.activePiece.Pos.X++
+		}
 	}
 
 	g.timer++
 	if g.timer >= 30 {
-		g.activePiece.Pos.Y++
+		newPos := Point{X: g.activePiece.Pos.X, Y: g.activePiece.Pos.Y + 1}
+		if g.isValidMove(newPos, g.activePiece.Shape) {
+			g.activePiece.Pos.Y++
+		} else {
+			g.lockPiece()
+		}
 		g.timer = 0
 	}
 
@@ -53,6 +61,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			y := float32(row * BlockSize)
 
 			vector.StrokeRect(screen, x, y, BlockSize, BlockSize, 1, color.RGBA{40, 40, 40, 255}, false)
+
+			if g.grid[row][col] != 0 {
+				c := getShapeColor(g.grid[row][col] - 1)
+				vector.FillRect(screen, x, y, BlockSize, BlockSize, c, false)
+			}
 
 			if g.activePiece != nil {
 				for _, p := range g.activePiece.Shape {
@@ -69,4 +82,48 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return ScreenWidth, ScreenHeight
+}
+
+func (g *Game) spawnPiece() {
+	typeIdx := rand.Intn(len(Tetrominoes))
+
+	g.activePiece = &Piece{
+		Type:  typeIdx,
+		Pos:   Point{X: BoardWidth / 2, Y: 0},
+		Shape: Tetrominoes[typeIdx],
+	}
+}
+
+func (g *Game) lockPiece() {
+	for _, p := range g.activePiece.Shape {
+		x := g.activePiece.Pos.X + p.X
+		y := g.activePiece.Pos.Y + p.Y
+
+		if y >= 0 {
+			g.grid[y][x] = g.activePiece.Type + 1
+		}
+	}
+
+	g.spawnPiece()
+}
+
+func (g *Game) isValidMove(pos Point, shape []Point) bool {
+	for _, p := range shape {
+		newX := pos.X + p.X
+		newY := pos.Y + p.Y
+
+		if newX < 0 || newX >= BoardWidth {
+			return false
+		}
+
+		if newY >= BoardHeight {
+			return false
+		}
+
+		if newY >= 0 && g.grid[newY][newX] != 0 {
+			return false
+		}
+	}
+
+	return true
 }
