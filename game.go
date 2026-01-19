@@ -1,25 +1,30 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
 	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 const (
-	ScreenWidth  = 300
-	ScreenHeight = 600
 	BoardWidth   = 10
 	BoardHeight  = 20
 	BlockSize    = 30
+	ScreenWidth  = (BoardWidth * BlockSize) + 200
+	ScreenHeight = BoardHeight * BlockSize
 )
 
 type Game struct {
 	grid        [BoardHeight][BoardWidth]int
 	activePiece *Piece
+	nextPiece   *Piece
 	timer       int
+	score       int
+	random      *rand.Rand
 }
 
 func (g *Game) Update() error {
@@ -70,16 +75,34 @@ func (g *Game) Draw(screen *ebiten.Image) {
 				c := getShapeColor(g.grid[row][col] - 1)
 				vector.FillRect(screen, x, y, BlockSize, BlockSize, c, false)
 			}
+		}
+	}
 
-			if g.activePiece != nil {
-				for _, p := range g.activePiece.Shape {
-					drawX := (g.activePiece.Pos.X + p.X) * BlockSize
-					drawY := (g.activePiece.Pos.Y + p.Y) * BlockSize
+	if g.activePiece != nil {
+		c := getShapeColor(g.activePiece.Type)
+		for _, p := range g.activePiece.Shape {
+			drawX := float32(g.activePiece.Pos.X+p.X) * BlockSize
+			drawY := float32(g.activePiece.Pos.Y+p.Y) * BlockSize
 
-					vector.FillRect(screen, float32(drawX), float32(drawY),
-						BlockSize, BlockSize, color.RGBA{0, 255, 255, 255}, false)
-				}
+			if drawY >= 0 {
+				vector.FillRect(screen, drawX, drawY, BlockSize, BlockSize, c, false)
 			}
+		}
+	}
+
+	sidebarX := float32(BoardWidth*BlockSize) + 20
+
+	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("SCORE: %d", g.score), int(sidebarX), 20)
+	ebitenutil.DebugPrintAt(screen, "NEXT PIECE:", int(sidebarX), 60)
+
+	if g.nextPiece != nil {
+		nextCol := getShapeColor(g.nextPiece.Type)
+		for _, p := range g.nextPiece.Shape {
+			// Offset the preview so it sits nicely in the sidebar
+			pX := sidebarX + float32(p.X+1)*BlockSize
+			pY := 120 + float32(p.Y+1)*BlockSize
+
+			vector.FillRect(screen, pX, pY, BlockSize, BlockSize, nextCol, false)
 		}
 	}
 }
@@ -89,12 +112,22 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 }
 
 func (g *Game) spawnPiece() {
-	typeIdx := rand.Intn(len(Tetrominoes))
+	if g.nextPiece == nil {
+		typeIdx := g.random.Intn(len(Tetrominoes))
+		g.nextPiece = &Piece{
+			Type:  typeIdx,
+			Pos:   Point{X: BoardWidth / 2, Y: 0},
+			Shape: Tetrominoes[typeIdx],
+		}
+	}
 
-	g.activePiece = &Piece{
-		Type:  typeIdx,
+	g.activePiece = g.nextPiece
+
+	nextTypeIdx := g.random.Intn(len(Tetrominoes))
+	g.nextPiece = &Piece{
+		Type:  nextTypeIdx,
 		Pos:   Point{X: BoardWidth / 2, Y: 0},
-		Shape: Tetrominoes[typeIdx],
+		Shape: Tetrominoes[nextTypeIdx],
 	}
 }
 
@@ -151,6 +184,8 @@ func (g *Game) rotatePiece() {
 }
 
 func (g *Game) checkLines() {
+	linesCleared := 0
+
 	for y := BoardHeight - 1; y >= 0; y-- {
 		full := true
 		for x := range BoardWidth {
@@ -161,6 +196,7 @@ func (g *Game) checkLines() {
 		}
 
 		if full {
+			linesCleared++
 			for row := y; row > 0; row-- {
 				g.grid[row] = g.grid[row-1]
 			}
@@ -168,5 +204,16 @@ func (g *Game) checkLines() {
 
 			y++
 		}
+	}
+
+	switch linesCleared {
+	case 1:
+		g.score += 100
+	case 2:
+		g.score += 300
+	case 3:
+		g.score += 500
+	case 4:
+		g.score += 800
 	}
 }
